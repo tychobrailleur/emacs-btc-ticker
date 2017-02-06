@@ -108,6 +108,7 @@
       (setq btc-ticker-mode-line (propertize value-str 'face '(:foreground "lime green"))))
      ((< new-value btc-ticker--current-value)
       (setq btc-ticker-mode-line (propertize value-str 'face '(:foreground "red")))))
+    (force-mode-line-update t)
     (setq btc-ticker--current-value new-value)))
 
 (defun btc-ticker-fetch ()
