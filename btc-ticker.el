@@ -1,6 +1,7 @@
-;;; btc-ticker.el --- Shows latest bitcoin price
+;;; btc-ticker.el --- Shows latest bitcoin price   -*- coding: utf-8 -*-
 
 ;; Copyright (C) 2014  Jorge Niedbalski R.
+;; Copyright (c) 2017  Sébastien Le Callonnec
 
 ;; Author: Jorge Niedbalski R. <jnr@metaklass.org>
 ;; Version: 0.1
@@ -32,8 +33,26 @@
   :group 'comms
   :prefix "btc-ticker-")
 
-(defconst bitstamp-api-url "https://www.bitstamp.net/api/ticker/")
-(defcustom btc-ticker-api-poll-interval 10
+(defcustom btc-ticker-currency
+  "euro"
+  "Ticker currency."
+  :type '(choice (const :tag "euro" euro)
+                 (const :tag "dollar" dollar))
+  :group 'btc-ticker)
+
+(defconst btc--currencies
+  '(("euro" . '("eur" . "€"))
+    ("dollar" . '("usd" . "$")))
+  "List of supported currencies.")
+
+(defcustom btc-ticker-amount 1
+  "BTC amount to convert into `btc-ticker-currency'."
+  :type 'float
+  :group 'btc-ticker)
+
+(defconst bitstamp-api-url "https://www.bitstamp.net/api/v2/ticker")
+
+(defcustom btc-ticker-api-poll-interval 30
   "Default interval to poll to the bitstamp api"
   :type 'number
   :group 'btc-ticker)
@@ -41,13 +60,18 @@
 (defvar btc-ticker-timer nil
   "Bitstamp API poll timer")
 
-(defvar btc-ticker-mode-line " $0.00"
+(defun btc-ticker--currency-symbol ()
+  "Get the currency symbol for the chosen currency."
+  (cdr (caddr (assoc btc-ticker-currency btc--currencies))))
+
+(defvar btc-ticker-mode-line (format " %s0.00" (btc-ticker--currency-symbol))
   "Displayed on mode-line")
 
 ;;very risky :)
 (put 'btc-ticker-mode-line 'risky-local-variable t)
 
-(defun btc-ticker-start()
+
+(defun btc-ticker-start ()
   (unless btc-ticker-timer
     (setq btc-ticker-timer
           (run-at-time "0 sec"
@@ -55,28 +79,36 @@
                        #'btc-ticker-fetch))
     (btc-ticker-update-status)))
 
-(defun btc-ticker-stop()
+(defun btc-ticker-stop ()
   (when btc-ticker-timer
     (cancel-timer btc-ticker-timer)
     (setq btc-ticker-timer nil)
     (if (boundp 'mode-line-modes)
         (delete '(t btc-ticker-mode-line) mode-line-modes))))
 
-(defun btc-ticker-update-status()
-  (if (not(btc-ticker-mode))
+(defun btc-ticker-update-status ()
+  (if (not (btc-ticker-mode))
       (progn
         (if (boundp 'mode-line-modes)
             (add-to-list 'mode-line-modes '(t btc-ticker-mode-line) t)))))
 
-(defun btc-ticker-fetch()
+(defun btc-ticker--bitstamp-api-url ()
+  (format "%s/btc%s" bitstamp-api-url
+          (car (caddr (assoc btc-ticker-currency btc--currencies)))))
+
+(defun btc-ticker--convert-to-currency (data)
+  (let ((val (* btc-ticker-amount (string-to-number (assoc-default 'last data)))))
+    (format " %s%.2f" (btc-ticker--currency-symbol) val)))
+
+(defun btc-ticker-fetch ()
   (progn
     (request
-     bitstamp-api-url
+     (btc-ticker--bitstamp-api-url)
      :parser 'json-read
      :success (function*
-               (lambda(&key data &allow-other-keys)
-		 (setq btc-ticker-mode-line
-		       (concat " $" (assoc-default 'last data))))))))
+               (lambda (&key data &allow-other-keys)
+                 (setq btc-ticker-mode-line
+                       (btc-ticker--convert-to-currency data)))))))
 
 ;;;###autoload
 (define-minor-mode btc-ticker-mode
@@ -85,11 +117,8 @@
   :global t
   :lighter btc-ticker-mode-line
   (if btc-ticker-mode
-       (progn
-        (btc-ticker-start)
-         )
-    (btc-ticker-stop)
-    ))
+      (btc-ticker-start)
+    (btc-ticker-stop)))
 
 (provide 'btc-ticker)
 ;;; btc-ticker.el ends here
