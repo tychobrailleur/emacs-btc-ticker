@@ -4,9 +4,9 @@ Emacs btc-ticker-mode
 Emacs minor-mode to display current Bitcoin price on the
 mode-line.
 
-![Screenshot](https://github.com/pennersr/emacs-btc-ticker/blob/master/images/screenshot.png?raw=true)
+![Screenshot](https://github.com/tychobrailleur/emacs-btc-ticker/blob/master/images/screenshot.png?raw=true)
 
-![Screenshot](https://github.com/pennersr/emacs-btc-ticker/blob/master/images/screenshot2.png?raw=true)
+![Screenshot](https://github.com/tychobrailleur/emacs-btc-ticker/blob/master/images/screenshot2.png?raw=true)
 
 Installation
 ------------
