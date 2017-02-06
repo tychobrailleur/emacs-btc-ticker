@@ -66,10 +66,9 @@
 
 (defvar btc-ticker-mode-line (format " %s0.00" (btc-ticker--currency-symbol))
   "Displayed on mode-line")
-
-;;very risky :)
 (put 'btc-ticker-mode-line 'risky-local-variable t)
 
+(defvar btc-ticker--current-value nil)
 
 (defun btc-ticker-start ()
   (unless btc-ticker-timer
@@ -88,27 +87,38 @@
 
 (defun btc-ticker-update-status ()
   (if (not (btc-ticker-mode))
-      (progn
-        (if (boundp 'mode-line-modes)
-            (add-to-list 'mode-line-modes '(t btc-ticker-mode-line) t)))))
+      (if (boundp 'mode-line-modes)
+          (add-to-list 'mode-line-modes '(t btc-ticker-mode-line) t))))
 
 (defun btc-ticker--bitstamp-api-url ()
   (format "%s/btc%s" bitstamp-api-url
           (car (caddr (assoc btc-ticker-currency btc--currencies)))))
 
 (defun btc-ticker--convert-to-currency (data)
-  (let ((val (* btc-ticker-amount (string-to-number (assoc-default 'last data)))))
-    (format " %s%.2f" (btc-ticker--currency-symbol) val)))
+  (* btc-ticker-amount (string-to-number (assoc-default 'last data))))
+
+(defun btc-ticker--set-ticker-mode-line (new-value)
+  (let ((value-str (format " %s%.2f" (btc-ticker--currency-symbol) new-value)))
+    (cond
+     ((not (numberp btc-ticker--current-value))
+      (setq btc-ticker-mode-line value-str))
+     ((= btc-ticker--current-value new-value)
+      (setq btc-ticker-mode-line value-str))
+     ((> new-value btc-ticker--current-value)
+      (setq btc-ticker-mode-line (propertize value-str 'face '(:foreground "lime green"))))
+     ((< new-value btc-ticker--current-value)
+      (setq btc-ticker-mode-line (propertize value-str 'face '(:foreground "red")))))
+    (setq btc-ticker--current-value new-value)))
 
 (defun btc-ticker-fetch ()
-  (progn
-    (request
-     (btc-ticker--bitstamp-api-url)
-     :parser 'json-read
-     :success (function*
-               (lambda (&key data &allow-other-keys)
-                 (setq btc-ticker-mode-line
-                       (btc-ticker--convert-to-currency data)))))))
+  (request
+   (btc-ticker--bitstamp-api-url)
+   :parser 'json-read
+   :success (function*
+             (lambda (&key data &allow-other-keys)
+               (btc-ticker--set-ticker-mode-line
+                (btc-ticker--convert-to-currency data))))))
+
 
 ;;;###autoload
 (define-minor-mode btc-ticker-mode
